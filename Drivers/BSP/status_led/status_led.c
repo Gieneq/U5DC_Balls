@@ -93,8 +93,11 @@ bsp_result_t status_led_init() {
 		sampled_sine[i] = CONSTRAIN(sampled_sine[i], 0, STATUS_LED_PWM_MAX);
 	}
 
-	MX_TIM16_Init();
 	MX_TIM7_Init();
+	MX_TIM16_Init();
+
+	HAL_TIM_Base_MspInit(&htim7);
+	HAL_TIM_Base_MspInit(&htim16);
 
 	HAL_StatusTypeDef ret = HAL_OK;
 

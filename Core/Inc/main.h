@@ -32,6 +32,7 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bsp.h"
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -63,6 +64,10 @@ void Error_Handler(void);
 #define LED_RED_GPIO_Port GPIOE
 #define BLUE_BUTTON_Pin GPIO_PIN_13
 #define BLUE_BUTTON_GPIO_Port GPIOC
+#define BLUE_BUTTON_EXTI_IRQn EXTI13_IRQn
+#define TEMPT_INTRN_Pin GPIO_PIN_2
+#define TEMPT_INTRN_GPIO_Port GPIOF
+#define TEMPT_INTRN_EXTI_IRQn EXTI2_IRQn
 
 /* USER CODE BEGIN Private defines */
 

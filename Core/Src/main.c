@@ -24,12 +24,13 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "microtimer.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
+#define REFRESH_INTERVAL_US 10000UL
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -97,12 +98,27 @@ int main(void)
   if (bsp_init() != BSP_OK) {
 	  Error_Handler();
   }
+  printf("BSP created successfully!\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint32_t start_loop_us = microtimer_get_us();
   while (1)
   {
+	  microperformance_start_work();
+
+	  bsp_update();
+
+	  microperformance_end_work();
+
+	  /* Wait to remain constant refreshrate */
+	  while((microtimer_get_us() - start_loop_us) < REFRESH_INTERVAL_US) {
+		  __NOP();
+	  }
+	  start_loop_us = microtimer_get_us();
+	  microperformance_end_loop();
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -183,7 +199,16 @@ static void SystemPower_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+int __io_putchar(int ch)
+{
+  if (ch == '\n') {
+    __io_putchar('\r');
+  }
 
+  HAL_UART_Transmit(&huart1, (uint8_t*)&ch, 1, HAL_MAX_DELAY);
+
+  return 1;
+}
 /* USER CODE END 4 */
 
 /**
