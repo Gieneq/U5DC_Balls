@@ -58,6 +58,19 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define VFP 50
+#define PIXEL_PERLINE 768
+#define LCD_WIDTH 480
+#define VBP 12
+#define LCD_FRAME_BUFFER GFXMMU_VIRTUAL_BUFFER0_BASE
+#define HACT 480
+#define VSYNC 1
+#define HFP 1
+#define VACT 481
+#define HBP 1
+#define LCD_HEIGHT 481
+#define HSYNC 2
+#define PHY0_ADDRESS (uint32_t) asd
 #define LED_GREEN_Pin GPIO_PIN_0
 #define LED_GREEN_GPIO_Port GPIOE
 #define LED_RED_Pin GPIO_PIN_1

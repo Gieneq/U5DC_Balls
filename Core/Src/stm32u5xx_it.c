@@ -55,6 +55,10 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern DMA2D_HandleTypeDef hdma2d;
+extern DSI_HandleTypeDef hdsi;
+extern GFXMMU_HandleTypeDef hgfxmmu;
+extern LTDC_HandleTypeDef hltdc;
 extern TIM_HandleTypeDef htim6;
 
 /* USER CODE BEGIN EV */
@@ -226,6 +230,62 @@ void TIM6_IRQHandler(void)
   /* USER CODE BEGIN TIM6_IRQn 1 */
 
   /* USER CODE END TIM6_IRQn 1 */
+}
+
+/**
+  * @brief This function handles DMA2D global interrupt.
+  */
+void DMA2D_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA2D_IRQn 0 */
+
+  /* USER CODE END DMA2D_IRQn 0 */
+  HAL_DMA2D_IRQHandler(&hdma2d);
+  /* USER CODE BEGIN DMA2D_IRQn 1 */
+
+  /* USER CODE END DMA2D_IRQn 1 */
+}
+
+/**
+  * @brief This function handles GFXMMU global interrupt.
+  */
+void GFXMMU_IRQHandler(void)
+{
+  /* USER CODE BEGIN GFXMMU_IRQn 0 */
+
+  /* USER CODE END GFXMMU_IRQn 0 */
+  HAL_GFXMMU_IRQHandler(&hgfxmmu);
+  /* USER CODE BEGIN GFXMMU_IRQn 1 */
+
+  /* USER CODE END GFXMMU_IRQn 1 */
+}
+
+/**
+  * @brief This function handles LCD-TFT Error interrupt.
+  */
+void LTDC_ER_IRQHandler(void)
+{
+  /* USER CODE BEGIN LTDC_ER_IRQn 0 */
+
+  /* USER CODE END LTDC_ER_IRQn 0 */
+  HAL_LTDC_IRQHandler(&hltdc);
+  /* USER CODE BEGIN LTDC_ER_IRQn 1 */
+
+  /* USER CODE END LTDC_ER_IRQn 1 */
+}
+
+/**
+  * @brief This function handles DSIHOST global interrupt.
+  */
+void DSI_IRQHandler(void)
+{
+  /* USER CODE BEGIN DSI_IRQn 0 */
+
+  /* USER CODE END DSI_IRQn 0 */
+  HAL_DSI_IRQHandler(&hdsi);
+  /* USER CODE BEGIN DSI_IRQn 1 */
+
+  /* USER CODE END DSI_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
