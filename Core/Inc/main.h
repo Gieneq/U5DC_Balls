@@ -42,7 +42,8 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-
+#define LCD_FRAMEBUFFER0_SIZE 184320
+extern uint32_t lcd_framebuffer0[LCD_FRAMEBUFFER0_SIZE];
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -59,6 +60,7 @@ void Error_Handler(void);
 
 /* Private defines -----------------------------------------------------------*/
 #define VFP 50
+#define PHY0_ADDRESS ((uint32_t) lcd_framebuffer0)
 #define PIXEL_PERLINE 768
 #define LCD_WIDTH 480
 #define VBP 12
@@ -70,11 +72,14 @@ void Error_Handler(void);
 #define HBP 1
 #define LCD_HEIGHT 481
 #define HSYNC 2
-#define PHY0_ADDRESS (uint32_t) asd
 #define LED_GREEN_Pin GPIO_PIN_0
 #define LED_GREEN_GPIO_Port GPIOE
 #define LED_RED_Pin GPIO_PIN_1
 #define LED_RED_GPIO_Port GPIOE
+#define DSI_NRES_Pin GPIO_PIN_5
+#define DSI_NRES_GPIO_Port GPIOD
+#define DSI_BL_CTRL_Pin GPIO_PIN_6
+#define DSI_BL_CTRL_GPIO_Port GPIOI
 #define BLUE_BUTTON_Pin GPIO_PIN_13
 #define BLUE_BUTTON_GPIO_Port GPIOC
 #define BLUE_BUTTON_EXTI_IRQn EXTI13_IRQn

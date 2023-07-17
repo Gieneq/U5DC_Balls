@@ -23,7 +23,7 @@
 /* USER CODE BEGIN 0 */
 #include "gfxmmu_lut.h"
 //ALIGN_32BYTES (uint32_t   PhysFrameBuff[184320]);
-uint32_t PhysFrameBuff[184320];
+//uint32_t PhysFrameBuff[184320];
 /* USER CODE END 0 */
 
 GFXMMU_HandleTypeDef hgfxmmu;
@@ -42,7 +42,7 @@ void MX_GFXMMU_Init(void)
   hgfxmmu.Instance = GFXMMU;
   hgfxmmu.Init.BlocksPerLine = GFXMMU_192BLOCKS;
   hgfxmmu.Init.DefaultValue = 0xFFFFFFFF;
-  hgfxmmu.Init.Buffers.Buf0Address = (uint32_t) PhysFrameBuff;
+  hgfxmmu.Init.Buffers.Buf0Address = PHY0_ADDRESS;
   hgfxmmu.Init.Buffers.Buf1Address = 0;
   hgfxmmu.Init.Buffers.Buf2Address = 0;
   hgfxmmu.Init.Buffers.Buf3Address = 0;

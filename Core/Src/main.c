@@ -52,7 +52,14 @@ int32_t LCD_FillRect(uint32_t Instance, uint32_t Xpos, uint32_t Ypos, uint32_t W
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+//#if defined(__ICCARM__)
+//#pragma location =  0x200D0000
+//#elif defined ( __GNUC__ )
+//__attribute__((section (".RAM1_D")))
+//#endif
+//ALIGN_32BYTES (uint32_t   lcd_framebuffer0[184320]);
 
+uint32_t lcd_framebuffer0[LCD_FRAMEBUFFER0_SIZE];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -248,6 +255,11 @@ static void SystemPower_Config(void)
 {
 
   /*
+   * Disable the internal Pull-Up in Dead Battery pins of UCPD peripheral
+   */
+  HAL_PWREx_DisableUCPDDeadBattery();
+
+  /*
    * Switch to SMPS regulator instead of LDO
    */
   if (HAL_PWREx_ConfigSupply(PWR_SMPS_SUPPLY) != HAL_OK)
@@ -351,7 +363,7 @@ static uint32_t SetPanelConfig(void)
   HAL_Delay(120);
 
   /* Clear LCD_FRAME_BUFFER */
-  memset((uint32_t *)LCD_FRAME_BUFFER,0x00, 0xBFFFF);
+//  memset((uint32_t *)LCD_FRAME_BUFFER,0x00, 0xBFFFF);
 
   /* Display On */
   if (HAL_DSI_ShortWrite(&hdsi, 0, DSI_DCS_SHORT_PKT_WRITE_P0, 0x29, 0x00) != HAL_OK) return 21;
