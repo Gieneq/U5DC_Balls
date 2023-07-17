@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h>
 
 typedef enum state_t {
 	STATE_OFF = 1,

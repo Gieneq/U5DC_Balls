@@ -31,8 +31,9 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "bsp.h"
 #include <stdio.h>
+#include <string.h>
+#include "graphics.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -42,7 +43,6 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-#define LCD_FRAMEBUFFER0_SIZE 184320
 extern uint32_t lcd_framebuffer0[LCD_FRAMEBUFFER0_SIZE];
 /* USER CODE END EC */
 

@@ -54,6 +54,7 @@
 									<listOptionValue builtIn="false" value="../Drivers/BSP/common/i2c_bus"/>
 									<listOptionValue builtIn="false" value="../Drivers/BSP/status_led"/>
 									<listOptionValue builtIn="false" value="../Drivers/BSP/microtimer"/>
+									<listOptionValue builtIn="false" value="../Drivers/BSP/graphics"/>
 									<listOptionValue builtIn="false" value="../Drivers/BSP"/>
 								</option>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.645177370" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>

@@ -1,4 +1,8 @@
 #include "bsp.h"
+#include "graphics.h"
+#include "status_led.h"
+#include "i2c_bus.h"
+#include "microtimer.h"
 
 bsp_result_t bsp_init() {
 	bsp_result_t ret = BSP_OK;
@@ -19,6 +23,11 @@ bsp_result_t bsp_init() {
 	}
 
 	ret = my_stts22h_init();
+	if(ret != BSP_OK) {
+		return ret;
+	}
+
+	ret = graphics_init();
 	if(ret != BSP_OK) {
 		return ret;
 	}
