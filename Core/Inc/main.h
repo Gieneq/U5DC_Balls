@@ -33,6 +33,7 @@ extern "C" {
 /* USER CODE BEGIN Includes */
 #include "bsp.h"
 #include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -47,7 +48,9 @@ extern "C" {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
-
+//ALIGN_32BYTES (uint32_t   PhysFrameBuff[184320]);
+#define FRAMEBUFER_SIZE ((uint32_t)(480 * 481 * 1))
+extern uint32_t color_framebuffer[FRAMEBUFER_SIZE];
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
@@ -59,10 +62,11 @@ void Error_Handler(void);
 
 /* Private defines -----------------------------------------------------------*/
 #define VFP 50
+#define PHY0_ADDRESS (uint32_t) asd
 #define PIXEL_PERLINE 768
 #define LCD_WIDTH 480
 #define VBP 12
-#define LCD_FRAME_BUFFER GFXMMU_VIRTUAL_BUFFER0_BASE
+#define LCD_FRAME_BUFFER ((uint32_t)(color_framebuffer))
 #define HACT 480
 #define VSYNC 1
 #define HFP 1
@@ -70,11 +74,14 @@ void Error_Handler(void);
 #define HBP 1
 #define LCD_HEIGHT 481
 #define HSYNC 2
-#define PHY0_ADDRESS (uint32_t) asd
 #define LED_GREEN_Pin GPIO_PIN_0
 #define LED_GREEN_GPIO_Port GPIOE
 #define LED_RED_Pin GPIO_PIN_1
 #define LED_RED_GPIO_Port GPIOE
+#define DSI_NRES_Pin GPIO_PIN_5
+#define DSI_NRES_GPIO_Port GPIOD
+#define DSI_BL_CTRL_Pin GPIO_PIN_6
+#define DSI_BL_CTRL_GPIO_Port GPIOI
 #define BLUE_BUTTON_Pin GPIO_PIN_13
 #define BLUE_BUTTON_GPIO_Port GPIOC
 #define BLUE_BUTTON_EXTI_IRQn EXTI13_IRQn

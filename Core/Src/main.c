@@ -20,7 +20,6 @@
 #include "main.h"
 #include "dma2d.h"
 #include "dsihost.h"
-#include "gfxmmu.h"
 #include "icache.h"
 #include "ltdc.h"
 #include "usart.h"
@@ -34,14 +33,13 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-#define UTIL_LCD_COLOR_BLUE          0xFF0000FFUL
-#define REFRESH_INTERVAL_US 10000UL
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-static uint32_t SetPanelConfig(void);
-int32_t LCD_FillRect(uint32_t Instance, uint32_t Xpos, uint32_t Ypos, uint32_t Width, uint32_t Height, uint32_t Color);
+#define UTIL_LCD_COLOR_BLACK   0xFF000000UL
+#define UTIL_LCD_COLOR_BLUE    0xFF0000FFUL
+#define REFRESH_INTERVAL_US    10000UL
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -52,6 +50,7 @@ int32_t LCD_FillRect(uint32_t Instance, uint32_t Xpos, uint32_t Ypos, uint32_t W
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+uint32_t color_framebuffer[FRAMEBUFER_SIZE];
 
 /* USER CODE END PV */
 
@@ -60,7 +59,8 @@ void SystemClock_Config(void);
 void PeriphCommonClock_Config(void);
 static void SystemPower_Config(void);
 /* USER CODE BEGIN PFP */
-
+static uint32_t SetPanelConfig(void);
+static int32_t LCD_FillRect(uint32_t Instance, uint32_t Xpos, uint32_t Ypos, uint32_t Width, uint32_t Height, uint32_t Color);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -106,7 +106,6 @@ int main(void)
   MX_ICACHE_Init();
   MX_DMA2D_Init();
   MX_DSIHOST_DSI_Init();
-  MX_GFXMMU_Init();
   MX_LTDC_Init();
   /* USER CODE BEGIN 2 */
   if (bsp_init() != BSP_OK) {
@@ -118,23 +117,39 @@ int main(void)
   {
     Error_Handler();
   }
+  printf("DSI seems working!\n");
+
+//  for(int i =0; i<FRAMEBUFER_SIZE/2; ++i) {
+//	  color_framebuffer[i] = UTIL_LCD_COLOR_BLUE;
+//  }
+
+  LCD_FillRect(0, 0, 0, LCD_WIDTH, LCD_HEIGHT, UTIL_LCD_COLOR_BLACK);
+  LCD_FillRect(0, 100, 100, 200, 300, UTIL_LCD_COLOR_BLUE);
 
 
 //  UTIL_LCD_FillRect(0, 70, LCD_WIDTH, 40, UTIL_LCD_COLOR_BLUE);
 //  hltdc.Instance->
-  int rett = LCD_FillRect(0, 0, 70, 400, 40, UTIL_LCD_COLOR_BLUE);
+//  int rett = LCD_FillRect(0, 0, 70, 400, 40, UTIL_LCD_COLOR_BLUE);
 
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  printf("Start looping with interval %d ms!\n", (int)(REFRESH_INTERVAL_US/1000));
   uint32_t start_loop_us = microtimer_get_us();
+
+  int tmp_print_tick_count = 0;
   while (1)
   {
 	  microperformance_start_work();
 
 	  bsp_update();
+	  if(++tmp_print_tick_count > 500) {
+		  /* Print remperature every 5sec */
+		  tmp_print_tick_count = 0;
+		  printf("Tmpr: %.2f *C, Usge: %.2f%% \n", my_stts2h_get_temperature(), microperformance_get_usage());
+	  }
 
 	  microperformance_end_work();
 
@@ -247,6 +262,7 @@ void PeriphCommonClock_Config(void)
 static void SystemPower_Config(void)
 {
 
+	  HAL_PWREx_DisableUCPDDeadBattery();
   /*
    * Switch to SMPS regulator instead of LDO
    */
@@ -351,7 +367,8 @@ static uint32_t SetPanelConfig(void)
   HAL_Delay(120);
 
   /* Clear LCD_FRAME_BUFFER */
-  memset((uint32_t *)LCD_FRAME_BUFFER,0x00, 0xBFFFF);
+//  memset(color_framebuffer, 0, FRAMEBUFER_SIZE * sizeof(uint32_t));
+//  memset((uint32_t *)LCD_FRAME_BUFFER,0x00, 0xBFFFF);
 
   /* Display On */
   if (HAL_DSI_ShortWrite(&hdsi, 0, DSI_DCS_SHORT_PKT_WRITE_P0, 0x29, 0x00) != HAL_OK) return 21;
@@ -363,7 +380,7 @@ static uint32_t SetPanelConfig(void)
 }
 
 
-int32_t LCD_FillRect(uint32_t Instance, uint32_t Xpos, uint32_t Ypos, uint32_t Width, uint32_t Height, uint32_t Color)
+static int32_t LCD_FillRect(uint32_t Instance, uint32_t Xpos, uint32_t Ypos, uint32_t Width, uint32_t Height, uint32_t Color)
 {
   uint32_t  Xaddress = 0;
   uint32_t  Startaddress = 0;

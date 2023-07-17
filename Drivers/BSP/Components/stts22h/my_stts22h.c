@@ -23,7 +23,6 @@
 #define STATUS_IS_BUSY(_status) (_status & (1<<0) ? true : false)
 #define START_ONE_SHOT(_ctrl) _ctrl |= (1<<0)
 
-static bool one_shot_was_started;
 static uint32_t last_time;
 static float last_read_temperature;
 
