@@ -37,7 +37,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define REFRESH_INTERVAL_US 10000UL
+#define REFRESH_INTERVAL_US 50000UL
 #define INFO_LOG_INTERVAL_MS 5000UL
 /* USER CODE END PTD */
 
@@ -145,7 +145,7 @@ int main(void)
 
 	  /* Wait to remain constant refreshrate */
 	  while((microtimer_get_us() - start_loop_us) < REFRESH_INTERVAL_US) {
-		  __NOP();
+//		  __NOP();
 	  }
 	  start_loop_us = microtimer_get_us();
 	  microperformance_end_loop();

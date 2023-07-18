@@ -3,12 +3,29 @@
 #include "ltdc.h"
 #include "dsihost.h"
 #include "color_pallete.h"
+#include "microtimer.h"
+#include "gfxmmu.h"
+#define GFXMMU_FB_SIZE_TEST 730848
 
 extern LTDC_HandleTypeDef hltdc;
 extern DSI_HandleTypeDef hdsi;
 
 static uint32_t SetPanelConfig(void);
+static __IO uint32_t last_ltdc_line_event_us;
+static __IO float ltdc_line_event_frequency_hz;
+static __IO float ltdc_line_event_interval_ms;
 
+
+static __IO uint32_t ltdc_backporch_enter_us;
+static __IO uint32_t ltdc_frontporch_enter_us;
+static __IO float ltdc_rendering_time_ms;
+static __IO float ltdc_blanking_period_ms;
+
+static __IO int32_t ltdc_clear_sreen_duriation_us;
+static int line_y_pos = 0;
+
+static __IO uint32_t current_ltdc_x;
+static __IO uint32_t current_ltdc_y;
 
 //#if defined(__ICCARM__)
 //#pragma location =  0x200D0000
@@ -37,7 +54,14 @@ uint32_t lcd_framebuffer0[LCD_FRAMEBUFFER0_SIZE];
 //}
 
 uint32_t tmp_y = 0;
+#define PENDING_BUFFER_NONE -1
+#define PENDING_BUFFER_SOME  0
+//#define VSYNC_LINE_IDX 0
+static uint32_t pend_buffer = PENDING_BUFFER_NONE;
 
+#define LOCATION_FRONTPORCH 12 //(_hltdc)  ()hltdc   //12
+#define LOCATION_BACKPORCH  480 //  (_hltdc)   ()        //482
+static uint32_t ltdc_line_current_location = LOCATION_FRONTPORCH;
 
 
 bsp_result_t graphics_init() {
@@ -45,14 +69,55 @@ bsp_result_t graphics_init() {
 		return BSP_ERROR;
 	}
 	gfx_clearscreen();
-	gfx_draw_fillrect(0, 70, 400, 80, COLOR_RED);
+//	gfx_draw_fillrect(0, 70, 400, 80, COLOR_RED);
+
+	/* VSync stuff */
+	HAL_LTDC_ProgramLineEvent(&hltdc, LOCATION_FRONTPORCH);
+	pend_buffer = PENDING_BUFFER_NONE;
+	last_ltdc_line_event_us = microtimer_get_us();
 
 	return BSP_OK;
 }
 
 
 
+void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc) {
+	/* Finding LTDC location */
+	current_ltdc_y = hltdc->Instance->CPSR & 0xFFFF;
+	current_ltdc_x = (hltdc->Instance->CPSR >> 16) & 0xFFFF;
 
+	if(ltdc_line_current_location == LOCATION_FRONTPORCH) {
+		/* Measure blanking time */
+		ltdc_frontporch_enter_us = microtimer_get_us();
+		ltdc_blanking_period_ms = (ltdc_frontporch_enter_us - ltdc_backporch_enter_us) / 1000.0F;
+
+		/* Measure interval & frequency */
+		ltdc_line_event_interval_ms = (microtimer_get_us() - last_ltdc_line_event_us) / 1000.0F;
+		ltdc_line_event_frequency_hz = 1000.0F / ltdc_line_event_interval_ms;
+		last_ltdc_line_event_us = microtimer_get_us();
+		pend_buffer = PENDING_BUFFER_NONE;
+		HAL_LTDC_ProgramLineEvent(hltdc, LOCATION_BACKPORCH);
+		ltdc_line_current_location = LOCATION_BACKPORCH;
+	}
+
+	else if(ltdc_line_current_location == LOCATION_BACKPORCH) {
+		/* Measure rendering time */
+		ltdc_backporch_enter_us = microtimer_get_us();
+		ltdc_rendering_time_ms = (ltdc_backporch_enter_us - ltdc_frontporch_enter_us) / 1000.0F;
+		HAL_LTDC_ProgramLineEvent(hltdc, LOCATION_FRONTPORCH);
+		ltdc_line_current_location = LOCATION_FRONTPORCH;
+	}
+
+
+
+	if(pend_buffer == PENDING_BUFFER_SOME) {
+//		LTDC_LAYER(hltdc, 0)->CFBAR = ((uint32_t)Buffers[pend_buffer]);
+//		__HAL_LTDC_RELOAD_IMMEDIATE_CONFIG(hltdc);
+//		front_buffer = pend_buffer;
+		pend_buffer = PENDING_BUFFER_NONE;
+	}
+
+}
 
 
 
@@ -61,9 +126,7 @@ bsp_result_t graphics_init() {
   * @param  None
   * @retval Input state (1 : active / 0 : Inactive)
   */
-static uint32_t SetPanelConfig(void)
-{
-
+static uint32_t SetPanelConfig(void) {
   if(HAL_DSI_Start(&hdsi) != HAL_OK) return 1;
 
   /* CMD Mode */
@@ -141,27 +204,20 @@ static uint32_t SetPanelConfig(void)
   return 0;
 }
 
-
 void gfx_draw_fillrect(uint32_t x_pos, uint32_t y_pos, uint32_t width, uint32_t height, uint32_t color) {
-  uint32_t  Xaddress = 0;
-  uint32_t  Startaddress = 0;
+  uint32_t  px_address = 0;
   uint32_t  i;
   uint32_t  j;
 
   /* Get the rectangle start address */
-  //todo - 0 is for singlebuffer
-  Startaddress = (hltdc.LayerCfg[0].FBStartAdress + (4 * (y_pos * PIXEL_PERLINE + x_pos)));
-  uint32_t endaddress = hltdc.LayerCfg[0].FBStartAdress + 4*LCD_FRAMEBUFFER0_SIZE;
+  uint32_t startaddress = (hltdc.LayerCfg[0].FBStartAdress + (4 * (y_pos * PIXEL_PERLINE + x_pos)));
 
   /* Fill the rectangle */
   for (i = 0; i < height; i++) {
-    Xaddress = Startaddress + (3072 * i); //768 * 4
-    for (j = 0; j < width; j++)
-    {
-    	if(Xaddress < endaddress) {
-    	      *(__IO uint32_t *)(Xaddress) = color;
-    	}
-      Xaddress += 4;
+    px_address = startaddress + (3072 * i); //768 * 4
+    for (j = 0; j < width; j++) {
+    	      *(__IO uint32_t *)(px_address) = color;
+      px_address += 4;
     }
   }
 }
@@ -172,12 +228,23 @@ void gfx_fillscreen(uint32_t color) {
 }
 
 void gfx_clearscreen() {
-//	gfx_fillscreen(COLOR_BLACK);
-	memset(lcd_framebuffer0, 0, LCD_FRAMEBUFFER0_SIZE * sizeof(uint32_t));
+	gfx_fillscreen(COLOR_BLACK);
 }
 
+
+//	memset(lcd_framebuffer0, 0, LCD_FRAMEBUFFER0_SIZE * sizeof(uint32_t));
+//	memset((void*)hltdc.LayerCfg[0].FBStartAdress, 0x00, GFXMMU_FB_SIZE_TEST * sizeof(uint32_t)/2);
+
+//	gfx_draw_fillrect(10, line_y_pos++, LCD_WIDTH-20, 40, 0xffff00ff);
+//	if(line_y_pos > (LCD_HEIGHT - 40)) {
+//		line_y_pos = 0;
+//		memset((void*)hltdc.LayerCfg[0].FBStartAdress, 0x00, GFXMMU_FB_SIZE_TEST * sizeof(uint32_t)/2);
+
+
 void gfx_prepare() {
-//	gfx_clearscreen();
-	gfx_draw_fillrect(0, tmp_y++, 480, 80, COLOR_RED);
-	//todo some sort of vsync
+	int32_t ltdc_clear_sreen_start_us = microtimer_get_us();
+	/* Clear screen */
+	gfx_fillscreen(0xFFFF0000); // RED
+	gfx_draw_fillrect(LCD_WIDTH/2 - 20, LCD_HEIGHT-40, 40, 40, 0xff0000ff);
+	ltdc_clear_sreen_duriation_us = microtimer_get_us() - ltdc_clear_sreen_start_us;
 }
