@@ -262,6 +262,20 @@ void GFXMMU_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles LCD-TFT global interrupt.
+  */
+void LTDC_IRQHandler(void)
+{
+  /* USER CODE BEGIN LTDC_IRQn 0 */
+
+  /* USER CODE END LTDC_IRQn 0 */
+  HAL_LTDC_IRQHandler(&hltdc);
+  /* USER CODE BEGIN LTDC_IRQn 1 */
+
+  /* USER CODE END LTDC_IRQn 1 */
+}
+
+/**
   * @brief This function handles LCD-TFT Error interrupt.
   */
 void LTDC_ER_IRQHandler(void)

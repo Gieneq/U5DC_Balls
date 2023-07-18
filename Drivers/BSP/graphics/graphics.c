@@ -19,6 +19,25 @@ static uint32_t SetPanelConfig(void);
 
 uint32_t lcd_framebuffer0[LCD_FRAMEBUFFER0_SIZE];
 
+//int counter_1 = 0;
+//int counter_2 = 0;
+//int counter_3 = 0;
+//
+//void HAL_DSI_TearingEffectCallback(DSI_HandleTypeDef *hdsi) {
+//++counter_1;
+//}
+//
+//void HAL_DSI_EndOfRefreshCallback(DSI_HandleTypeDef *hdsi) {
+//++counter_2;
+//}
+//
+//
+//void HAL_DSI_ErrorCallback(DSI_HandleTypeDef *hdsi) {
+//++counter_3;
+//}
+
+uint32_t tmp_y = 0;
+
 
 
 bsp_result_t graphics_init() {
@@ -132,13 +151,16 @@ void gfx_draw_fillrect(uint32_t x_pos, uint32_t y_pos, uint32_t width, uint32_t 
   /* Get the rectangle start address */
   //todo - 0 is for singlebuffer
   Startaddress = (hltdc.LayerCfg[0].FBStartAdress + (4 * (y_pos * PIXEL_PERLINE + x_pos)));
+  uint32_t endaddress = hltdc.LayerCfg[0].FBStartAdress + 4*LCD_FRAMEBUFFER0_SIZE;
 
   /* Fill the rectangle */
   for (i = 0; i < height; i++) {
-    Xaddress = Startaddress + (3072 * i);
+    Xaddress = Startaddress + (3072 * i); //768 * 4
     for (j = 0; j < width; j++)
     {
-      *(__IO uint32_t *)(Xaddress) = color;
+    	if(Xaddress < endaddress) {
+    	      *(__IO uint32_t *)(Xaddress) = color;
+    	}
       Xaddress += 4;
     }
   }
@@ -152,4 +174,10 @@ void gfx_fillscreen(uint32_t color) {
 void gfx_clearscreen() {
 //	gfx_fillscreen(COLOR_BLACK);
 	memset(lcd_framebuffer0, 0, LCD_FRAMEBUFFER0_SIZE * sizeof(uint32_t));
+}
+
+void gfx_prepare() {
+//	gfx_clearscreen();
+	gfx_draw_fillrect(0, tmp_y++, 480, 80, COLOR_RED);
+	//todo some sort of vsync
 }
