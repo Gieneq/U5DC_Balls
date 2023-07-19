@@ -5,12 +5,17 @@
 #include "color_pallete.h"
 #include "microtimer.h"
 #include "gfxmmu.h"
+#include "dma2d.h"
+#include <math.h>
+
 #define GFXMMU_FB_SIZE_TEST 730848
 
 extern LTDC_HandleTypeDef hltdc;
 extern DSI_HandleTypeDef hdsi;
+extern DMA2D_HandleTypeDef hdma2d;
 
 static uint32_t SetPanelConfig(void);
+static void DMA2D_FillRect(uint32_t color, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 static __IO uint32_t last_ltdc_line_event_us;
 static __IO float ltdc_line_event_frequency_hz;
 static __IO float ltdc_line_event_interval_ms;
@@ -205,26 +210,41 @@ static uint32_t SetPanelConfig(void) {
 }
 
 void gfx_draw_fillrect(uint32_t x_pos, uint32_t y_pos, uint32_t width, uint32_t height, uint32_t color) {
-  uint32_t  px_address = 0;
-  uint32_t  i;
-  uint32_t  j;
-
-  /* Get the rectangle start address */
-  uint32_t startaddress = (hltdc.LayerCfg[0].FBStartAdress + (4 * (y_pos * PIXEL_PERLINE + x_pos)));
-
-  /* Fill the rectangle */
-  for (i = 0; i < height; i++) {
-    px_address = startaddress + (3072 * i); //768 * 4
-    for (j = 0; j < width; j++) {
-    	      *(__IO uint32_t *)(px_address) = color;
-      px_address += 4;
-    }
-  }
+//  uint32_t  px_address = 0;
+//  uint32_t  i;
+//  uint32_t  j;
+//
+//  /* Get the rectangle start address */
+//  uint32_t startaddress = (hltdc.LayerCfg[0].FBStartAdress + (4 * (y_pos * PIXEL_PERLINE + x_pos)));
+//
+//  /* Fill the rectangle */
+//  for (i = 0; i < height; i++) {
+//    px_address = startaddress + (3072 * i); //768 * 4
+//    for (j = 0; j < width; j++) {
+//    	      *(__IO uint32_t *)(px_address) = color;
+//      px_address += 4;
+//    }
+//  }
+	DMA2D_FillRect(color, x_pos, y_pos, width, height);
 }
 
+static void DMA2D_FillRect(uint32_t color, uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
+	hdma2d.Init.Mode = DMA2D_R2M;
+	hdma2d.Init.ColorMode = DMA2D_OUTPUT_ARGB8888;
+	hdma2d.Init.OutputOffset = PIXEL_PERLINE - width;
+	HAL_DMA2D_Init(&hdma2d);
+	HAL_DMA2D_Start(
+		&hdma2d,
+		color,
+		hltdc.LayerCfg[0].FBStartAdress + 4 * (y * PIXEL_PERLINE + x),
+		width,
+		height
+	);
+	HAL_DMA2D_PollForTransfer(&hdma2d, 100);
+}
 
 void gfx_fillscreen(uint32_t color) {
-	gfx_draw_fillrect(0, 0, LCD_WIDTH, LCD_HEIGHT, color);
+	DMA2D_FillRect(color, 0, 0, LCD_WIDTH, LCD_HEIGHT);
 }
 
 void gfx_clearscreen() {
@@ -240,11 +260,26 @@ void gfx_clearscreen() {
 //		line_y_pos = 0;
 //		memset((void*)hltdc.LayerCfg[0].FBStartAdress, 0x00, GFXMMU_FB_SIZE_TEST * sizeof(uint32_t)/2);
 
-
+static float fi = 0;
+static float radius = 140;
+static float cx = LCD_WIDTH/2;
+static float cy = LCD_HEIGHT/2;
+static uint32_t size = 50;
+static float freq = 0.5F;
+static float t = 0;
 void gfx_prepare() {
 	int32_t ltdc_clear_sreen_start_us = microtimer_get_us();
 	/* Clear screen */
-	gfx_fillscreen(0xFFFF0000); // RED
-	gfx_draw_fillrect(LCD_WIDTH/2 - 20, LCD_HEIGHT-40, 40, 40, 0xff0000ff);
+	gfx_fillscreen(0xFF000000); // BLACK
+
+	t += REFRESH_INTERVAL_US/1000000.0F;
+	uint32_t sq_xy = (uint32_t)(cx + radius * sinf(2.0F*3.1415F*freq*t)) - size/2;
+	gfx_draw_fillrect(sq_xy, sq_xy, size, size, 0xff0000ff);
+
+
+	uint32_t cq_x = (uint32_t)(cx + radius * sinf(2.0F*3.1415F*freq*t)) - size/2;
+	uint32_t cq_y = (uint32_t)(cx + radius * cosf(2.0F*3.1415F*freq*t)) - size/2;
+	gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffff0000);
+
 	ltdc_clear_sreen_duriation_us = microtimer_get_us() - ltdc_clear_sreen_start_us;
 }

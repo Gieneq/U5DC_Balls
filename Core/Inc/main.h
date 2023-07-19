@@ -48,7 +48,7 @@ extern uint32_t lcd_framebuffer0[LCD_FRAMEBUFFER0_SIZE];
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
-
+#define REFRESH_INTERVAL_US 16000UL
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/

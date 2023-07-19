@@ -37,7 +37,6 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define REFRESH_INTERVAL_US 50000UL
 #define INFO_LOG_INTERVAL_MS 5000UL
 /* USER CODE END PTD */
 
