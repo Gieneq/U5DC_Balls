@@ -7,9 +7,12 @@ void microtimer_start();
 uint32_t microtimer_stop();
 uint32_t microtimer_get_us();
 
-void microperformance_start_work();
-void microperformance_end_work();
+void microperformance_start_idle();
+void microperformance_start_update();
+void microperformance_end_update();
+void microperformance_start_draw();
 void microperformance_end_loop();
+
 float microperformance_get_usage();
 
 

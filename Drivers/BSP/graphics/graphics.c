@@ -15,7 +15,9 @@ extern DSI_HandleTypeDef hdsi;
 extern DMA2D_HandleTypeDef hdma2d;
 
 static uint32_t SetPanelConfig(void);
-static void DMA2D_FillRect(uint32_t color, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+static void DMA2D_FillRectBlocking(uint32_t color, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+static void DMA2D_FillRectNonblocking(uint32_t color, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+static void DMA2D_wait_until_finished();
 
 static void swap_buffers();
 static void on_blanking_event();
@@ -30,6 +32,7 @@ static __IO uint32_t ltdc_frontporch_enter_us;
 static __IO float ltdc_rendering_time_ms;
 static __IO float ltdc_blanking_period_ms;
 
+static __IO int32_t ltdc_clear_sreen_start_us;
 static __IO int32_t ltdc_clear_sreen_duriation_us;
 //static int line_y_pos = 0;
 
@@ -49,13 +52,9 @@ static uint32_t back_buffer_address = GFXMMU_VIRTUAL_BUFFER1_BASE;
 uint32_t lcd_framebuffer0[LCD_FRAMEBUFFER0_SIZE];
 uint32_t lcd_framebuffer1[LCD_FRAMEBUFFER1_SIZE];
 
-uint32_t tmp_y = 0;
-//#define VSYNC_LINE_IDX 0
-
-#define LOCATION_FRONTPORCH 12 //(_hltdc)  ()hltdc   //12
-#define LOCATION_BACKPORCH  (480 + 2) //  (_hltdc)   ()        //482
+#define LOCATION_FRONTPORCH 12
+#define LOCATION_BACKPORCH  (480 + 2)
 static uint32_t ltdc_line_current_location = LOCATION_FRONTPORCH;
-
 
 #define LCD_REFRESH_DIV (2)
 static __IO int lcd_refresh_divider_counter = 0;
@@ -64,7 +63,6 @@ bsp_result_t graphics_init() {
 	if(SetPanelConfig() != 0) {
 		return BSP_ERROR;
 	}
-	gfx_clearscreen();
 
 	/* VSync stuff */
 	HAL_LTDC_ProgramLineEvent(&hltdc, LOCATION_BACKPORCH);
@@ -215,10 +213,15 @@ static uint32_t SetPanelConfig(void) {
 }
 
 void gfx_draw_fillrect(uint32_t x_pos, uint32_t y_pos, uint32_t width, uint32_t height, uint32_t color) {
-	DMA2D_FillRect(color, x_pos, y_pos, width, height);
+	DMA2D_FillRectBlocking(color, x_pos, y_pos, width, height);
 }
 
-static void DMA2D_FillRect(uint32_t color, uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
+static void DMA2D_FillRectBlocking(uint32_t color, uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
+	DMA2D_FillRectNonblocking(color, x, y, width, height);
+	DMA2D_wait_until_finished();
+}
+
+static void DMA2D_FillRectNonblocking(uint32_t color, uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
 	hdma2d.Init.Mode = DMA2D_R2M;
 	hdma2d.Init.ColorMode = DMA2D_OUTPUT_ARGB8888;
 	hdma2d.Init.OutputOffset = PIXEL_PERLINE - width;
@@ -238,96 +241,38 @@ static void DMA2D_FillRect(uint32_t color, uint32_t x, uint32_t y, uint32_t widt
 	if(ret != HAL_OK) {
 		Error_Handler();
 	}
+}
 
+static void DMA2D_wait_until_finished() {
+	HAL_StatusTypeDef ret = HAL_OK;
 	ret = HAL_DMA2D_PollForTransfer(&hdma2d, 100);
 	if(ret != HAL_OK) {
 		Error_Handler();
 	}
 }
 
-void gfx_fillscreen(uint32_t color) {
-	DMA2D_FillRect(color, 0, 0, LCD_WIDTH, LCD_HEIGHT);
-}
-
-void gfx_clearscreen() {
-	gfx_fillscreen(COLOR_BLACK);
-}
-
-
-static float radius = 140;
-static float cx = LCD_WIDTH/2;
-static float cy = LCD_HEIGHT/2;
-static uint32_t size = 50;
-static float freq = 0.5F;
-static float t = 0;
-//static int white_v_idx = 1;
-//static int white_h_idx = -1;
-
-
-void gfx_prepare() {
+void gfx_wait_until_vsync() {
 	while(can_start_draw != 1) {
 		;
 	}
-	can_start_draw = 0;
-
-	int32_t ltdc_clear_sreen_start_us = microtimer_get_us();
-	/* Clear screen */
-//	if(clear_color_selection == 0) {
-//		clear_color_selection = 1;
-//		gfx_fillscreen(0xFF00FF00); // GREEN
-//	} else {
-//		clear_color_selection = 0;
-//		gfx_fillscreen(0xFFFF0000); // RED
-//	}
-	gfx_fillscreen(0xFF000000); // BLACK
-
-	/* Blue */
-	t += REFRESH_INTERVAL_US/1000000.0F;
-	{
-		uint32_t sq_xy = (uint32_t)(cx + radius * sinf(2.0F*3.1415F*freq*t)) - size/2;
-		gfx_draw_fillrect(sq_xy, sq_xy, size, size, 0xff0000ff);
-	}
-
-	/* Magenta */
-	{
-		uint32_t sq_xy = (uint32_t)(cx - radius * sin(2.0F*3.1415F*freq*t)) - size/2;
-		gfx_draw_fillrect(sq_xy, sq_xy, size, size, 0xffff00ff);
-	}
-
-	/* Red */
-	{
-		uint32_t cq_x = (uint32_t)(cx + radius * sinf(2.0F*3.1415F*freq*t)) - size/2;
-		uint32_t cq_y = (uint32_t)(cy + radius * cosf(2.0F*3.1415F*freq*t)) - size/2;
-		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffff0000);
-	}
-
-	/* Yellow */
-	{
-		uint32_t cq_x = (uint32_t)(cx + radius * sinf(-2.0F*3.1415F*freq*t)) - size/2;
-		uint32_t cq_y = (uint32_t)(cy + radius * cosf(-2.0F*3.1415F*freq*t)) - size/2;
-		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffffff00);
-	}
-
-//	/* White vertical */
-//	{
-//		uint32_t cq_x = (uint32_t)(cx + white_v_idx * 200) - size/2;
-//		uint32_t cq_y = (uint32_t)(cy + 0) - size/2;
-//		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffffffff);
-//		white_v_idx *= -1;
-//	}
-//
-//	/* White horizontal */
-//	{
-//		uint32_t cq_x = (uint32_t)(cx + 0) - size/2;
-//		uint32_t cq_y = (uint32_t)(cy + white_h_idx * 200) - size/2;
-//		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffffffff);
-//		white_h_idx *= -1;
-//	}
-
-	/* Green */
-	gfx_draw_fillrect(cx-size/2, cy-size/2, size, size, 0xff00ff00);
+}
 
 
-	ltdc_clear_sreen_duriation_us = microtimer_get_us() - ltdc_clear_sreen_start_us;
+void gfx_start_clearscreen() {
+	ltdc_clear_sreen_start_us = microtimer_get_us();
+
+	/* Clear screen nonblocking */
+	DMA2D_FillRectNonblocking(0xFF000000, 0, 0, LCD_WIDTH, LCD_HEIGHT);
 
 }
+
+void gfx_wait_until_clearscreen() {
+	DMA2D_wait_until_finished();
+	ltdc_clear_sreen_duriation_us = microtimer_get_us() - ltdc_clear_sreen_start_us;
+}
+
+void gfx_finish() {
+	can_start_draw = 0;
+}
+
+

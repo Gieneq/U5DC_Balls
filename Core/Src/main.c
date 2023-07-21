@@ -60,7 +60,7 @@ void SystemClock_Config(void);
 void PeriphCommonClock_Config(void);
 static void SystemPower_Config(void);
 /* USER CODE BEGIN PFP */
-
+static void draw_test();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -118,36 +118,30 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint32_t start_loop_us = microtimer_get_us();
-  uint32_t info_log_ms_counter = HAL_GetTick();
-  uint32_t gfx_us;
-  uint32_t gfx_us_delta;
   while (1)
   {
-//	  microperformance_start_work();
-//
-//	  /* Update logic */
-//	  bsp_update();
-//	  if((HAL_GetTick() - info_log_ms_counter) > INFO_LOG_INTERVAL_MS) {
-//		  /* Log every INFO_LOG_INTERVAL_MS */
-//		  info_log_ms_counter = HAL_GetTick();
-//		  printf("Tmpr: %.2f*C, usage: %.2f%%, gfx: %dms\n", my_stts2h_get_temperature(), microperformance_get_usage(), (int)(gfx_us_delta/1000));
-//	  }
+	  microperformance_start_idle();
+	  gfx_wait_until_vsync();
 
-	  /* Render stuff */
-//	  gfx_us = microtimer_get_us();
-	  gfx_prepare();
-//	  gfx_us_delta = microtimer_get_us() - gfx_us;
+	  /* Start nonblocking clear and update in meantime */
+	  microperformance_start_update();
+	  gfx_start_clearscreen();
+	  /* Place for some update logic */
+	  {
+		  bsp_update();
+		  //todo logic
+	  }
+	  microperformance_end_update();
 
-
-//	  microperformance_end_work();
-
-	  /* Wait to remain constant refreshrate */
-//	  while((microtimer_get_us() - start_loop_us) < REFRESH_INTERVAL_US) {
-////		  __NOP();
-//	  }
-//	  start_loop_us = microtimer_get_us();
-//	  microperformance_end_loop();
+	  gfx_wait_until_clearscreen();
+	  microperformance_start_draw();
+	  /* Place for some drawing */
+	  {
+		  draw_test();
+		  //todo draw
+	  }
+	  gfx_finish();
+	  microperformance_end_loop();
 
     /* USER CODE END WHILE */
 
@@ -281,7 +275,48 @@ int __io_putchar(int ch)
 
 
 
+static float radius = 140;
+static float cx = LCD_WIDTH/2;
+static float cy = LCD_HEIGHT/2;
+static uint32_t size = 50;
+static float freq = 0.5F;
+static float t = 0;
+//static int white_v_idx = 1;
+//static int white_h_idx = -1;
 
+
+static void draw_test() {
+	/* Blue */
+	t += REFRESH_INTERVAL_US/1000000.0F;
+	{
+		uint32_t sq_xy = (uint32_t)(cx + radius * sinf(2.0F*3.1415F*freq*t)) - size/2;
+		gfx_draw_fillrect(sq_xy, sq_xy, size, size, 0xff0000ff);
+	}
+
+	/* Magenta */
+	{
+		uint32_t sq_xy = (uint32_t)(cx - radius * sin(2.0F*3.1415F*freq*t)) - size/2;
+		gfx_draw_fillrect(sq_xy, sq_xy, size, size, 0xffff00ff);
+	}
+
+	/* Red */
+	{
+		uint32_t cq_x = (uint32_t)(cx + radius * sinf(2.0F*3.1415F*freq*t)) - size/2;
+		uint32_t cq_y = (uint32_t)(cy + radius * cosf(2.0F*3.1415F*freq*t)) - size/2;
+		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffff0000);
+	}
+
+	/* Yellow */
+	{
+		uint32_t cq_x = (uint32_t)(cx + radius * sinf(-2.0F*3.1415F*freq*t)) - size/2;
+		uint32_t cq_y = (uint32_t)(cy + radius * cosf(-2.0F*3.1415F*freq*t)) - size/2;
+		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffffff00);
+	}
+
+
+	/* Green */
+	gfx_draw_fillrect(cx-size/2, cy-size/2, size, size, 0xff00ff00);
+}
 
 
 
