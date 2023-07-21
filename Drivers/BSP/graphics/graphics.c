@@ -19,14 +19,11 @@ static void DMA2D_FillRect(uint32_t color, uint32_t x, uint32_t y, uint32_t widt
 
 static void swap_buffers();
 static void on_blanking_event();
-static void on_rendering_event();
 static __IO int can_start_draw = 0;
-
 
 static __IO uint32_t last_ltdc_line_event_us;
 static __IO float ltdc_line_event_frequency_hz;
 static __IO float ltdc_line_event_interval_ms;
-
 
 static __IO uint32_t ltdc_backporch_enter_us;
 static __IO uint32_t ltdc_frontporch_enter_us;
@@ -52,33 +49,16 @@ static uint32_t back_buffer_address = GFXMMU_VIRTUAL_BUFFER1_BASE;
 uint32_t lcd_framebuffer0[LCD_FRAMEBUFFER0_SIZE];
 uint32_t lcd_framebuffer1[LCD_FRAMEBUFFER1_SIZE];
 
-//int counter_1 = 0;
-//int counter_2 = 0;
-//int counter_3 = 0;
-//
-//void HAL_DSI_TearingEffectCallback(DSI_HandleTypeDef *hdsi) {
-//++counter_1;
-//}
-//
-//void HAL_DSI_EndOfRefreshCallback(DSI_HandleTypeDef *hdsi) {
-//++counter_2;
-//}
-//
-//
-//void HAL_DSI_ErrorCallback(DSI_HandleTypeDef *hdsi) {
-//++counter_3;
-//}
-
 uint32_t tmp_y = 0;
-#define PENDING_BUFFER_NONE -1
-#define PENDING_BUFFER_SOME  0
 //#define VSYNC_LINE_IDX 0
-static uint32_t pend_buffer = PENDING_BUFFER_NONE;
 
 #define LOCATION_FRONTPORCH 12 //(_hltdc)  ()hltdc   //12
 #define LOCATION_BACKPORCH  (480 + 2) //  (_hltdc)   ()        //482
-//static uint32_t ltdc_line_current_location = LOCATION_FRONTPORCH;
+static uint32_t ltdc_line_current_location = LOCATION_FRONTPORCH;
 
+
+#define LCD_REFRESH_DIV (2)
+static __IO int lcd_refresh_divider_counter = 0;
 
 bsp_result_t graphics_init() {
 	if(SetPanelConfig() != 0) {
@@ -88,10 +68,9 @@ bsp_result_t graphics_init() {
 
 	/* VSync stuff */
 	HAL_LTDC_ProgramLineEvent(&hltdc, LOCATION_BACKPORCH);
-	pend_buffer = PENDING_BUFFER_NONE;
 	last_ltdc_line_event_us = microtimer_get_us();
-
 	can_start_draw = 0;
+	lcd_refresh_divider_counter = 0;
 
 	return BSP_OK;
 }
@@ -109,60 +88,45 @@ static void swap_buffers() {
 
 static void on_blanking_event() {
 	/* Swap buffers to render frame */
-	swap_buffers();
-	can_start_draw = 1;
+	++lcd_refresh_divider_counter;
+	if(lcd_refresh_divider_counter >= (LCD_REFRESH_DIV - 0)) {
+		lcd_refresh_divider_counter = 0;
+		swap_buffers();
+		can_start_draw = 1;
+	}
 }
 
-static void on_rendering_event() {
-	/* Let start draw next frame */
-}
 
 void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc) {
 	/* Finding LTDC location */
-	on_blanking_event();
-	if(HAL_LTDC_ProgramLineEvent(hltdc, LOCATION_BACKPORCH) != HAL_OK) {
-		Error_Handler();
+	current_ltdc_y = hltdc->Instance->CPSR & 0xFFFF;
+	current_ltdc_x = (hltdc->Instance->CPSR >> 16) & 0xFFFF;
+
+	if(ltdc_line_current_location == LOCATION_FRONTPORCH) {
+		/* Measure blanking time */
+		ltdc_frontporch_enter_us = microtimer_get_us();
+		ltdc_blanking_period_ms = (ltdc_frontporch_enter_us - ltdc_backporch_enter_us) / 1000.0F;
+
+		/* Measure interval & frequency */
+		ltdc_line_event_interval_ms = (microtimer_get_us() - last_ltdc_line_event_us) / 1000.0F;
+		ltdc_line_event_frequency_hz = 1000.0F / ltdc_line_event_interval_ms;
+		last_ltdc_line_event_us = microtimer_get_us();
+		if(HAL_LTDC_ProgramLineEvent(hltdc, LOCATION_BACKPORCH) != HAL_OK) {
+			Error_Handler();
+		}
+		ltdc_line_current_location = LOCATION_BACKPORCH;
 	}
 
-
-
-
-//	current_ltdc_y = hltdc->Instance->CPSR & 0xFFFF;
-//	current_ltdc_x = (hltdc->Instance->CPSR >> 16) & 0xFFFF;
-//
-//	if(ltdc_line_current_location == LOCATION_FRONTPORCH) {
-//		/* Measure blanking time */
-//		ltdc_frontporch_enter_us = microtimer_get_us();
-//		ltdc_blanking_period_ms = (ltdc_frontporch_enter_us - ltdc_backporch_enter_us) / 1000.0F;
-//
-//		/* Measure interval & frequency */
-//		ltdc_line_event_interval_ms = (microtimer_get_us() - last_ltdc_line_event_us) / 1000.0F;
-//		ltdc_line_event_frequency_hz = 1000.0F / ltdc_line_event_interval_ms;
-//		last_ltdc_line_event_us = microtimer_get_us();
-//		pend_buffer = PENDING_BUFFER_NONE;
-//		HAL_LTDC_ProgramLineEvent(hltdc, LOCATION_BACKPORCH);
-//		ltdc_line_current_location = LOCATION_BACKPORCH;
-//		on_rendering_event();
-//	}
-//
-//	else if(ltdc_line_current_location == LOCATION_BACKPORCH) {
-//		/* Measure rendering time */
-//		ltdc_backporch_enter_us = microtimer_get_us();
-//		ltdc_rendering_time_ms = (ltdc_backporch_enter_us - ltdc_frontporch_enter_us) / 1000.0F;
-//		HAL_LTDC_ProgramLineEvent(hltdc, LOCATION_FRONTPORCH);
-//		ltdc_line_current_location = LOCATION_FRONTPORCH;
-//		on_blanking_event();
-//	}
-//
-//
-//
-//	if(pend_buffer == PENDING_BUFFER_SOME) {
-////		LTDC_LAYER(hltdc, 0)->CFBAR = ((uint32_t)Buffers[pend_buffer]);
-////		__HAL_LTDC_RELOAD_IMMEDIATE_CONFIG(hltdc);
-////		front_buffer = pend_buffer;
-//		pend_buffer = PENDING_BUFFER_NONE;
-//	}
-
+	else if(ltdc_line_current_location == LOCATION_BACKPORCH) {
+		/* Measure rendering time */
+		ltdc_backporch_enter_us = microtimer_get_us();
+		ltdc_rendering_time_ms = (ltdc_backporch_enter_us - ltdc_frontporch_enter_us) / 1000.0F;
+		if(HAL_LTDC_ProgramLineEvent(hltdc, LOCATION_FRONTPORCH) != HAL_OK) {
+			Error_Handler();
+		}
+		ltdc_line_current_location = LOCATION_FRONTPORCH;
+		on_blanking_event();
+	}
 }
 
 
@@ -296,9 +260,10 @@ static float cy = LCD_HEIGHT/2;
 static uint32_t size = 50;
 static float freq = 0.5F;
 static float t = 0;
-static int white_v_idx = 1;
-static int white_h_idx = -1;
-static int clear_color_selection = 1;
+//static int white_v_idx = 1;
+//static int white_h_idx = -1;
+
+
 void gfx_prepare() {
 	while(can_start_draw != 1) {
 		;
@@ -343,21 +308,21 @@ void gfx_prepare() {
 		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffffff00);
 	}
 
-	/* White vertical */
-	{
-		uint32_t cq_x = (uint32_t)(cx + white_v_idx * 200) - size/2;
-		uint32_t cq_y = (uint32_t)(cy + 0) - size/2;
-		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffffffff);
-		white_v_idx *= -1;
-	}
-
-	/* White horizontal */
-	{
-		uint32_t cq_x = (uint32_t)(cx + 0) - size/2;
-		uint32_t cq_y = (uint32_t)(cy + white_h_idx * 200) - size/2;
-		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffffffff);
-		white_h_idx *= -1;
-	}
+//	/* White vertical */
+//	{
+//		uint32_t cq_x = (uint32_t)(cx + white_v_idx * 200) - size/2;
+//		uint32_t cq_y = (uint32_t)(cy + 0) - size/2;
+//		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffffffff);
+//		white_v_idx *= -1;
+//	}
+//
+//	/* White horizontal */
+//	{
+//		uint32_t cq_x = (uint32_t)(cx + 0) - size/2;
+//		uint32_t cq_y = (uint32_t)(cy + white_h_idx * 200) - size/2;
+//		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffffffff);
+//		white_h_idx *= -1;
+//	}
 
 	/* Green */
 	gfx_draw_fillrect(cx-size/2, cy-size/2, size, size, 0xff00ff00);
