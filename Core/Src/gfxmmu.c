@@ -41,9 +41,9 @@ void MX_GFXMMU_Init(void)
   /* USER CODE END GFXMMU_Init 1 */
   hgfxmmu.Instance = GFXMMU;
   hgfxmmu.Init.BlocksPerLine = GFXMMU_192BLOCKS;
-  hgfxmmu.Init.DefaultValue = 0xFFFFFFFF;
+  hgfxmmu.Init.DefaultValue = 0xFFFF00FF;
   hgfxmmu.Init.Buffers.Buf0Address = PHY0_ADDRESS;
-  hgfxmmu.Init.Buffers.Buf1Address = 0;
+  hgfxmmu.Init.Buffers.Buf1Address = PHY1_ADDRESS;
   hgfxmmu.Init.Buffers.Buf2Address = 0;
   hgfxmmu.Init.Buffers.Buf3Address = 0;
   hgfxmmu.Init.CachePrefetch.Activation = DISABLE;

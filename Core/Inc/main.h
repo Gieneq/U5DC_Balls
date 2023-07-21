@@ -44,6 +44,7 @@ extern "C" {
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
 extern uint32_t lcd_framebuffer0[LCD_FRAMEBUFFER0_SIZE];
+extern uint32_t lcd_framebuffer1[LCD_FRAMEBUFFER1_SIZE];
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -72,6 +73,7 @@ void Error_Handler(void);
 #define HBP 1
 #define LCD_HEIGHT 481
 #define HSYNC 2
+#define PHY1_ADDRESS ((uint32_t) lcd_framebuffer1)
 #define LED_GREEN_Pin GPIO_PIN_0
 #define LED_GREEN_GPIO_Port GPIOE
 #define LED_RED_Pin GPIO_PIN_1

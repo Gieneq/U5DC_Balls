@@ -16,6 +16,13 @@ extern DMA2D_HandleTypeDef hdma2d;
 
 static uint32_t SetPanelConfig(void);
 static void DMA2D_FillRect(uint32_t color, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+
+static void swap_buffers();
+static void on_blanking_event();
+static void on_rendering_event();
+static __IO int can_start_draw = 0;
+
+
 static __IO uint32_t last_ltdc_line_event_us;
 static __IO float ltdc_line_event_frequency_hz;
 static __IO float ltdc_line_event_interval_ms;
@@ -27,10 +34,13 @@ static __IO float ltdc_rendering_time_ms;
 static __IO float ltdc_blanking_period_ms;
 
 static __IO int32_t ltdc_clear_sreen_duriation_us;
-static int line_y_pos = 0;
+//static int line_y_pos = 0;
 
 static __IO uint32_t current_ltdc_x;
 static __IO uint32_t current_ltdc_y;
+
+static uint32_t front_buffer_address = GFXMMU_VIRTUAL_BUFFER0_BASE;
+static uint32_t back_buffer_address = GFXMMU_VIRTUAL_BUFFER1_BASE;
 
 //#if defined(__ICCARM__)
 //#pragma location =  0x200D0000
@@ -40,6 +50,7 @@ static __IO uint32_t current_ltdc_y;
 //ALIGN_32BYTES (uint32_t   lcd_framebuffer0[184320]);
 
 uint32_t lcd_framebuffer0[LCD_FRAMEBUFFER0_SIZE];
+uint32_t lcd_framebuffer1[LCD_FRAMEBUFFER1_SIZE];
 
 //int counter_1 = 0;
 //int counter_2 = 0;
@@ -65,8 +76,8 @@ uint32_t tmp_y = 0;
 static uint32_t pend_buffer = PENDING_BUFFER_NONE;
 
 #define LOCATION_FRONTPORCH 12 //(_hltdc)  ()hltdc   //12
-#define LOCATION_BACKPORCH  480 //  (_hltdc)   ()        //482
-static uint32_t ltdc_line_current_location = LOCATION_FRONTPORCH;
+#define LOCATION_BACKPORCH  (480 + 2) //  (_hltdc)   ()        //482
+//static uint32_t ltdc_line_current_location = LOCATION_FRONTPORCH;
 
 
 bsp_result_t graphics_init() {
@@ -74,53 +85,83 @@ bsp_result_t graphics_init() {
 		return BSP_ERROR;
 	}
 	gfx_clearscreen();
-//	gfx_draw_fillrect(0, 70, 400, 80, COLOR_RED);
 
 	/* VSync stuff */
-	HAL_LTDC_ProgramLineEvent(&hltdc, LOCATION_FRONTPORCH);
+	HAL_LTDC_ProgramLineEvent(&hltdc, LOCATION_BACKPORCH);
 	pend_buffer = PENDING_BUFFER_NONE;
 	last_ltdc_line_event_us = microtimer_get_us();
+
+	can_start_draw = 0;
 
 	return BSP_OK;
 }
 
 
+static void swap_buffers() {
+	uint32_t tmp_address = front_buffer_address;
+	front_buffer_address = back_buffer_address;
+	back_buffer_address = tmp_address;
+
+	if(HAL_LTDC_SetAddress(&hltdc, front_buffer_address, 0) != HAL_OK) {
+		Error_Handler();
+	}
+}
+
+static void on_blanking_event() {
+	/* Swap buffers to render frame */
+	swap_buffers();
+	can_start_draw = 1;
+}
+
+static void on_rendering_event() {
+	/* Let start draw next frame */
+}
 
 void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc) {
 	/* Finding LTDC location */
-	current_ltdc_y = hltdc->Instance->CPSR & 0xFFFF;
-	current_ltdc_x = (hltdc->Instance->CPSR >> 16) & 0xFFFF;
-
-	if(ltdc_line_current_location == LOCATION_FRONTPORCH) {
-		/* Measure blanking time */
-		ltdc_frontporch_enter_us = microtimer_get_us();
-		ltdc_blanking_period_ms = (ltdc_frontporch_enter_us - ltdc_backporch_enter_us) / 1000.0F;
-
-		/* Measure interval & frequency */
-		ltdc_line_event_interval_ms = (microtimer_get_us() - last_ltdc_line_event_us) / 1000.0F;
-		ltdc_line_event_frequency_hz = 1000.0F / ltdc_line_event_interval_ms;
-		last_ltdc_line_event_us = microtimer_get_us();
-		pend_buffer = PENDING_BUFFER_NONE;
-		HAL_LTDC_ProgramLineEvent(hltdc, LOCATION_BACKPORCH);
-		ltdc_line_current_location = LOCATION_BACKPORCH;
-	}
-
-	else if(ltdc_line_current_location == LOCATION_BACKPORCH) {
-		/* Measure rendering time */
-		ltdc_backporch_enter_us = microtimer_get_us();
-		ltdc_rendering_time_ms = (ltdc_backporch_enter_us - ltdc_frontporch_enter_us) / 1000.0F;
-		HAL_LTDC_ProgramLineEvent(hltdc, LOCATION_FRONTPORCH);
-		ltdc_line_current_location = LOCATION_FRONTPORCH;
+	on_blanking_event();
+	if(HAL_LTDC_ProgramLineEvent(hltdc, LOCATION_BACKPORCH) != HAL_OK) {
+		Error_Handler();
 	}
 
 
 
-	if(pend_buffer == PENDING_BUFFER_SOME) {
-//		LTDC_LAYER(hltdc, 0)->CFBAR = ((uint32_t)Buffers[pend_buffer]);
-//		__HAL_LTDC_RELOAD_IMMEDIATE_CONFIG(hltdc);
-//		front_buffer = pend_buffer;
-		pend_buffer = PENDING_BUFFER_NONE;
-	}
+
+//	current_ltdc_y = hltdc->Instance->CPSR & 0xFFFF;
+//	current_ltdc_x = (hltdc->Instance->CPSR >> 16) & 0xFFFF;
+//
+//	if(ltdc_line_current_location == LOCATION_FRONTPORCH) {
+//		/* Measure blanking time */
+//		ltdc_frontporch_enter_us = microtimer_get_us();
+//		ltdc_blanking_period_ms = (ltdc_frontporch_enter_us - ltdc_backporch_enter_us) / 1000.0F;
+//
+//		/* Measure interval & frequency */
+//		ltdc_line_event_interval_ms = (microtimer_get_us() - last_ltdc_line_event_us) / 1000.0F;
+//		ltdc_line_event_frequency_hz = 1000.0F / ltdc_line_event_interval_ms;
+//		last_ltdc_line_event_us = microtimer_get_us();
+//		pend_buffer = PENDING_BUFFER_NONE;
+//		HAL_LTDC_ProgramLineEvent(hltdc, LOCATION_BACKPORCH);
+//		ltdc_line_current_location = LOCATION_BACKPORCH;
+//		on_rendering_event();
+//	}
+//
+//	else if(ltdc_line_current_location == LOCATION_BACKPORCH) {
+//		/* Measure rendering time */
+//		ltdc_backporch_enter_us = microtimer_get_us();
+//		ltdc_rendering_time_ms = (ltdc_backporch_enter_us - ltdc_frontporch_enter_us) / 1000.0F;
+//		HAL_LTDC_ProgramLineEvent(hltdc, LOCATION_FRONTPORCH);
+//		ltdc_line_current_location = LOCATION_FRONTPORCH;
+//		on_blanking_event();
+//	}
+//
+//
+//
+//	if(pend_buffer == PENDING_BUFFER_SOME) {
+////		LTDC_LAYER(hltdc, 0)->CFBAR = ((uint32_t)Buffers[pend_buffer]);
+////		__HAL_LTDC_RELOAD_IMMEDIATE_CONFIG(hltdc);
+////		front_buffer = pend_buffer;
+//		pend_buffer = PENDING_BUFFER_NONE;
+//	}
 
 }
 
@@ -210,21 +251,6 @@ static uint32_t SetPanelConfig(void) {
 }
 
 void gfx_draw_fillrect(uint32_t x_pos, uint32_t y_pos, uint32_t width, uint32_t height, uint32_t color) {
-//  uint32_t  px_address = 0;
-//  uint32_t  i;
-//  uint32_t  j;
-//
-//  /* Get the rectangle start address */
-//  uint32_t startaddress = (hltdc.LayerCfg[0].FBStartAdress + (4 * (y_pos * PIXEL_PERLINE + x_pos)));
-//
-//  /* Fill the rectangle */
-//  for (i = 0; i < height; i++) {
-//    px_address = startaddress + (3072 * i); //768 * 4
-//    for (j = 0; j < width; j++) {
-//    	      *(__IO uint32_t *)(px_address) = color;
-//      px_address += 4;
-//    }
-//  }
 	DMA2D_FillRect(color, x_pos, y_pos, width, height);
 }
 
@@ -232,15 +258,27 @@ static void DMA2D_FillRect(uint32_t color, uint32_t x, uint32_t y, uint32_t widt
 	hdma2d.Init.Mode = DMA2D_R2M;
 	hdma2d.Init.ColorMode = DMA2D_OUTPUT_ARGB8888;
 	hdma2d.Init.OutputOffset = PIXEL_PERLINE - width;
-	HAL_DMA2D_Init(&hdma2d);
-	HAL_DMA2D_Start(
+	HAL_StatusTypeDef ret = HAL_OK;
+	ret = HAL_DMA2D_Init(&hdma2d);
+	if(ret != HAL_OK) {
+		Error_Handler();
+	}
+
+	ret = HAL_DMA2D_Start(
 		&hdma2d,
 		color,
-		hltdc.LayerCfg[0].FBStartAdress + 4 * (y * PIXEL_PERLINE + x),
+		back_buffer_address + 4 * (y * PIXEL_PERLINE + x),
 		width,
 		height
 	);
-	HAL_DMA2D_PollForTransfer(&hdma2d, 100);
+	if(ret != HAL_OK) {
+		Error_Handler();
+	}
+
+	ret = HAL_DMA2D_PollForTransfer(&hdma2d, 100);
+	if(ret != HAL_OK) {
+		Error_Handler();
+	}
 }
 
 void gfx_fillscreen(uint32_t color) {
@@ -252,34 +290,79 @@ void gfx_clearscreen() {
 }
 
 
-//	memset(lcd_framebuffer0, 0, LCD_FRAMEBUFFER0_SIZE * sizeof(uint32_t));
-//	memset((void*)hltdc.LayerCfg[0].FBStartAdress, 0x00, GFXMMU_FB_SIZE_TEST * sizeof(uint32_t)/2);
-
-//	gfx_draw_fillrect(10, line_y_pos++, LCD_WIDTH-20, 40, 0xffff00ff);
-//	if(line_y_pos > (LCD_HEIGHT - 40)) {
-//		line_y_pos = 0;
-//		memset((void*)hltdc.LayerCfg[0].FBStartAdress, 0x00, GFXMMU_FB_SIZE_TEST * sizeof(uint32_t)/2);
-
-static float fi = 0;
 static float radius = 140;
 static float cx = LCD_WIDTH/2;
 static float cy = LCD_HEIGHT/2;
 static uint32_t size = 50;
 static float freq = 0.5F;
 static float t = 0;
+static int white_v_idx = 1;
+static int white_h_idx = -1;
+static int clear_color_selection = 1;
 void gfx_prepare() {
+	while(can_start_draw != 1) {
+		;
+	}
+	can_start_draw = 0;
+
 	int32_t ltdc_clear_sreen_start_us = microtimer_get_us();
 	/* Clear screen */
+//	if(clear_color_selection == 0) {
+//		clear_color_selection = 1;
+//		gfx_fillscreen(0xFF00FF00); // GREEN
+//	} else {
+//		clear_color_selection = 0;
+//		gfx_fillscreen(0xFFFF0000); // RED
+//	}
 	gfx_fillscreen(0xFF000000); // BLACK
 
+	/* Blue */
 	t += REFRESH_INTERVAL_US/1000000.0F;
-	uint32_t sq_xy = (uint32_t)(cx + radius * sinf(2.0F*3.1415F*freq*t)) - size/2;
-	gfx_draw_fillrect(sq_xy, sq_xy, size, size, 0xff0000ff);
+	{
+		uint32_t sq_xy = (uint32_t)(cx + radius * sinf(2.0F*3.1415F*freq*t)) - size/2;
+		gfx_draw_fillrect(sq_xy, sq_xy, size, size, 0xff0000ff);
+	}
 
+	/* Magenta */
+	{
+		uint32_t sq_xy = (uint32_t)(cx - radius * sin(2.0F*3.1415F*freq*t)) - size/2;
+		gfx_draw_fillrect(sq_xy, sq_xy, size, size, 0xffff00ff);
+	}
 
-	uint32_t cq_x = (uint32_t)(cx + radius * sinf(2.0F*3.1415F*freq*t)) - size/2;
-	uint32_t cq_y = (uint32_t)(cx + radius * cosf(2.0F*3.1415F*freq*t)) - size/2;
-	gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffff0000);
+	/* Red */
+	{
+		uint32_t cq_x = (uint32_t)(cx + radius * sinf(2.0F*3.1415F*freq*t)) - size/2;
+		uint32_t cq_y = (uint32_t)(cy + radius * cosf(2.0F*3.1415F*freq*t)) - size/2;
+		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffff0000);
+	}
+
+	/* Yellow */
+	{
+		uint32_t cq_x = (uint32_t)(cx + radius * sinf(-2.0F*3.1415F*freq*t)) - size/2;
+		uint32_t cq_y = (uint32_t)(cy + radius * cosf(-2.0F*3.1415F*freq*t)) - size/2;
+		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffffff00);
+	}
+
+	/* White vertical */
+	{
+		uint32_t cq_x = (uint32_t)(cx + white_v_idx * 200) - size/2;
+		uint32_t cq_y = (uint32_t)(cy + 0) - size/2;
+		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffffffff);
+		white_v_idx *= -1;
+	}
+
+	/* White horizontal */
+	{
+		uint32_t cq_x = (uint32_t)(cx + 0) - size/2;
+		uint32_t cq_y = (uint32_t)(cy + white_h_idx * 200) - size/2;
+		gfx_draw_fillrect(cq_x, cq_y, size, size, 0xffffffff);
+		white_h_idx *= -1;
+	}
+
+	/* Green */
+	gfx_draw_fillrect(cx-size/2, cy-size/2, size, size, 0xff00ff00);
+
 
 	ltdc_clear_sreen_duriation_us = microtimer_get_us() - ltdc_clear_sreen_start_us;
+
 }

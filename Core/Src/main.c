@@ -124,30 +124,30 @@ int main(void)
   uint32_t gfx_us_delta;
   while (1)
   {
-	  microperformance_start_work();
-
-	  /* Update logic */
-	  bsp_update();
-	  if((HAL_GetTick() - info_log_ms_counter) > INFO_LOG_INTERVAL_MS) {
-		  /* Log every INFO_LOG_INTERVAL_MS */
-		  info_log_ms_counter = HAL_GetTick();
-		  printf("Tmpr: %.2f*C, usage: %.2f%%, gfx: %dms\n", my_stts2h_get_temperature(), microperformance_get_usage(), (int)(gfx_us_delta/1000));
-	  }
+//	  microperformance_start_work();
+//
+//	  /* Update logic */
+//	  bsp_update();
+//	  if((HAL_GetTick() - info_log_ms_counter) > INFO_LOG_INTERVAL_MS) {
+//		  /* Log every INFO_LOG_INTERVAL_MS */
+//		  info_log_ms_counter = HAL_GetTick();
+//		  printf("Tmpr: %.2f*C, usage: %.2f%%, gfx: %dms\n", my_stts2h_get_temperature(), microperformance_get_usage(), (int)(gfx_us_delta/1000));
+//	  }
 
 	  /* Render stuff */
-	  gfx_us = microtimer_get_us();
+//	  gfx_us = microtimer_get_us();
 	  gfx_prepare();
-	  gfx_us_delta = microtimer_get_us() - gfx_us;
+//	  gfx_us_delta = microtimer_get_us() - gfx_us;
 
 
-	  microperformance_end_work();
+//	  microperformance_end_work();
 
 	  /* Wait to remain constant refreshrate */
-	  while((microtimer_get_us() - start_loop_us) < REFRESH_INTERVAL_US) {
-//		  __NOP();
-	  }
-	  start_loop_us = microtimer_get_us();
-	  microperformance_end_loop();
+//	  while((microtimer_get_us() - start_loop_us) < REFRESH_INTERVAL_US) {
+////		  __NOP();
+//	  }
+//	  start_loop_us = microtimer_get_us();
+//	  microperformance_end_loop();
 
     /* USER CODE END WHILE */
 
