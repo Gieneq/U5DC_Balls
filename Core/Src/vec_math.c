@@ -77,6 +77,15 @@ vec2d_t vec_add(const vec2d_t* v1, const vec2d_t* v2) {
 	return tmp;
 }
 
+float vec_get_distance(const vec2d_t* bpos, const vec2d_t* b2pos) {
+	vec2d_t tmp = {
+			.x = bpos->x - b2pos->x,
+			.y = bpos->y - b2pos->y,
+	};
+
+	float dist_squared = tmp.x * tmp.x + tmp.y * tmp.y;
+	return sqrtf(dist_squared);
+}
 
 
 

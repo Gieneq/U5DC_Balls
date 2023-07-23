@@ -3,7 +3,7 @@
 #include <string.h>
 #include "graphics.h"
 #include "graphics_res.h"
-
+#include <stdbool.h>
 extern uint32_t ball_image[BALL_IMAGE_PIXELS];
 
 //static void balls_simulation_apply_constrains(ball_obj_t* ball);
@@ -50,11 +50,14 @@ void balls_simulation_init() {
 	}
 	balls_count = 0;
 
-	balls_add(0, -(240-25)); //todo inverse axis
-	balls_add(-240+25, 0);
-	balls_add(240-75, 0);
+//	balls_add(0, -(240-25)); //todo inverse axis
+//	balls_add(-240+25 + 0.1F, 0);
+//	balls_add(240-75, 0);
+//
+//	balls_add(-240+45, 40);
 
-	balls_add(-240+45, 40);
+	balls_add(0, 100);
+	balls_add(0, -200);
 }
 
 #define DAMPING_FACTOR 0.9F /* Reduction of velocity on collision */
@@ -72,9 +75,15 @@ void balls_simulation_update(float time_sec, float delta_time_sec) {
 		vec2d_t* bpos = &ball1_ref->pos;
 		vec2d_t* bvel = &ball1_ref->vel;
 
+
+		/* Check if colliding with constrains in small range */
+//		float actual_dist_from_center = sqrtf(vec_len_sq(bpos));
+//		bool is_touching = (actual_dist_from_center < (CONSTR_RADIUS - ball1_ref->radius))
+
+//		if(bs_is_touching_edge(bpos, ball1_ref->radius)) {
 		vec2d_t delta_vel = vec_scaled(&gravity_force, delta_time_sec);
 		vec_translate(bvel, &delta_vel);
-
+//		}
 
 		/*
 		 * Total position translation in this step. Not applying transltion yet */
@@ -170,12 +179,72 @@ void balls_simulation_update(float time_sec, float delta_time_sec) {
 
 				}
 			}
-
 			else {
-				/* No collicion with border */
-				vec_translate(bpos, &delta_pos);
-				delta_pos.x = 0.0F;
-				delta_pos.y = 0.0F;
+				/*
+				 * No collicion with border.
+				 * But can collide with other balls.
+				 */
+				bool found_collision = false;
+
+
+				/* Collide with the rest */
+				for(int j=0; j<balls_count; ++j) {
+					if(i == j) {
+						continue;
+					}
+
+					/* Other ball */
+					ball_obj_t* ball2_ref = &balls[j];
+					vec2d_t* b2pos = &ball2_ref->pos;
+					vec2d_t* b2vel = &ball2_ref->vel;
+
+					/* Check distance, if colliding, spread */
+					float b2b_dist = vec_get_distance(bpos, b2pos); //todo can improve
+					float b2b_radius_sum = ball1_ref->radius + ball2_ref->radius;
+					if(b2b_radius_sum > b2b_dist) {
+						/* colliding - spread them */
+						vec2d_t b2b_1_to_2_half = {
+								.x = (b2pos->x - bpos->x) / 2.0F,
+								.y = (b2pos->y - bpos->y) / 2.0F,
+						};
+						vec2d_t b2b_2_to_1_half = {
+								.x = -b2b_1_to_2_half.x,
+								.y = -b2b_1_to_2_half.y
+						};
+
+						//////// hacky, no all movement in this step
+						bpos->x -= b2b_1_to_2_half.x;
+						bpos->y -= b2b_1_to_2_half.y;
+						delta_pos.x = 0;
+						delta_pos.y = 0;
+
+						//////
+
+						b2pos->x -= b2b_2_to_1_half.x;
+						b2pos->y -= b2b_2_to_1_half.y;
+
+						/* Reflect velocity */
+						vec2d_t b1_refl_norm = vec_get_normalized(&b2b_2_to_1_half);
+						vec2d_t b2_refl_norm = {
+								.x = -b1_refl_norm.x,
+								.y = -b1_refl_norm.y,
+						};
+
+						*bvel = vec_get_reflected(bvel, &b1_refl_norm); //meh
+						*b2vel = vec_get_reflected(b2vel, &b2_refl_norm);
+
+						found_collision = true;
+						break; //not rly cuz can have some movement to do
+					}
+
+				}
+
+
+				if(found_collision == false) {
+					vec_translate(bpos, &delta_pos);
+					delta_pos.x = 0.0F;
+					delta_pos.y = 0.0F;
+				}
 			}
 		}
 	}

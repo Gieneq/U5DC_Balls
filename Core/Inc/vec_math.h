@@ -18,3 +18,5 @@ vec2d_t vec_get_reflected(const vec2d_t* vec, vec2d_t* normal);
 void vec_negate(vec2d_t* vec);
 float vec_get_dot_product(const vec2d_t* vec1, const vec2d_t* vec2);
 vec2d_t vec_add(const vec2d_t* v1, const vec2d_t* v2);
+
+float vec_get_distance(const vec2d_t* bpos, const vec2d_t* b2pos);
