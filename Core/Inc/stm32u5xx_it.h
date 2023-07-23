@@ -58,6 +58,8 @@ void SysTick_Handler(void);
 void EXTI13_IRQHandler(void);
 void TIM6_IRQHandler(void);
 void DMA2D_IRQHandler(void);
+void GPU2D_IRQHandler(void);
+void GPU2D_ER_IRQHandler(void);
 void GFXMMU_IRQHandler(void);
 void LTDC_IRQHandler(void);
 void LTDC_ER_IRQHandler(void);

@@ -21,6 +21,7 @@
 #include "dma2d.h"
 #include "dsihost.h"
 #include "gfxmmu.h"
+#include "gpu2d.h"
 #include "icache.h"
 #include "ltdc.h"
 #include "usart.h"
@@ -33,6 +34,8 @@
 #include "status_led.h"
 #include "graphics.h"
 #include "my_stts22h.h"
+#include "balls_simulation.h"
+#include "graphics_res.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -108,16 +111,28 @@ int main(void)
   MX_DSIHOST_DSI_Init();
   MX_GFXMMU_Init();
   MX_LTDC_Init();
+  MX_GPU2D_Init();
   /* USER CODE BEGIN 2 */
   if (bsp_init() != BSP_OK) {
 	  Error_Handler();
   }
   printf("BSP created successfully!\n");
 
+  graphics_res_init();
+
+  balls_simulation_init();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  float time_sec = 0;
+  float delta_time_sec = 0;
+  uint32_t last_us = microtimer_get_us();
+  uint32_t current_us = microtimer_get_us();
+
+#define START_SIM_WARMUP_DELAY 1.0F
+  float start_sim_warmup = 0;
   while (1)
   {
 	  microperformance_start_idle();
@@ -128,8 +143,17 @@ int main(void)
 	  gfx_start_clearscreen();
 	  /* Place for some update logic */
 	  {
+		  current_us = microtimer_get_us();
+		  delta_time_sec = (current_us - last_us) / 1000000.0F;
+		  time_sec += delta_time_sec;
+		  last_us = current_us;
 		  bsp_update();
-		  //todo logic
+
+		  if(start_sim_warmup > START_SIM_WARMUP_DELAY) {
+			  balls_simulation_update(time_sec, delta_time_sec);
+		  } else {
+			  start_sim_warmup += delta_time_sec;
+		  }
 	  }
 	  microperformance_end_update();
 
@@ -137,8 +161,10 @@ int main(void)
 	  microperformance_start_draw();
 	  /* Place for some drawing */
 	  {
-		  draw_test();
-		  //todo draw
+//		  draw_test();
+		  if(start_sim_warmup > START_SIM_WARMUP_DELAY) {
+			  balls_simulation_draw();
+		  }
 	  }
 	  gfx_finish();
 	  microperformance_end_loop();

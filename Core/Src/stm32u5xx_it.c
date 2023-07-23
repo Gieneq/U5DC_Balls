@@ -59,6 +59,7 @@
 extern DMA2D_HandleTypeDef hdma2d;
 extern DSI_HandleTypeDef hdsi;
 extern GFXMMU_HandleTypeDef hgfxmmu;
+extern GPU2D_HandleTypeDef hgpu2d;
 extern LTDC_HandleTypeDef hltdc;
 extern TIM_HandleTypeDef htim6;
 
@@ -245,6 +246,34 @@ void DMA2D_IRQHandler(void)
   /* USER CODE BEGIN DMA2D_IRQn 1 */
 
   /* USER CODE END DMA2D_IRQn 1 */
+}
+
+/**
+  * @brief This function handles GPU2D global interrupt.
+  */
+void GPU2D_IRQHandler(void)
+{
+  /* USER CODE BEGIN GPU2D_IRQn 0 */
+
+  /* USER CODE END GPU2D_IRQn 0 */
+  HAL_GPU2D_IRQHandler(&hgpu2d);
+  /* USER CODE BEGIN GPU2D_IRQn 1 */
+
+  /* USER CODE END GPU2D_IRQn 1 */
+}
+
+/**
+  * @brief This function handles GPU2D Error interrupt.
+  */
+void GPU2D_ER_IRQHandler(void)
+{
+  /* USER CODE BEGIN GPU2D_ER_IRQn 0 */
+
+  /* USER CODE END GPU2D_ER_IRQn 0 */
+  HAL_GPU2D_ER_IRQHandler(&hgpu2d);
+  /* USER CODE BEGIN GPU2D_ER_IRQn 1 */
+
+  /* USER CODE END GPU2D_ER_IRQn 1 */
 }
 
 /**
