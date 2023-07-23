@@ -16,4 +16,5 @@ vec2d_t vec_scaled(const vec2d_t* vec, const float scale);
 vec2d_t vec_get_normalized(const vec2d_t* vec);
 vec2d_t vec_get_reflected(const vec2d_t* vec, vec2d_t* normal);
 void vec_negate(vec2d_t* vec);
-//#define vec_scaled(_vec, _s) ((vec2d_t){_vec->x * _s, _vec->y * _s})
+float vec_get_dot_product(const vec2d_t* vec1, const vec2d_t* vec2);
+vec2d_t vec_add(const vec2d_t* v1, const vec2d_t* v2);

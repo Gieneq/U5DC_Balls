@@ -34,7 +34,7 @@ static const vec2d_t gravity_force = {0.0F, GRAVITY_CONST};
 static void balls_add(float start_x, float start_y) {
 	ball_obj_t tmp_ball = {
 			.pos = {start_x, start_y},
-			.radius = 50.0F,
+			.radius = 25.0F,
 			.vel = {0.0F, 0.0F}
 	};
 
@@ -53,12 +53,20 @@ void balls_simulation_init() {
 	balls_add(0, -(240-25)); //todo inverse axis
 	balls_add(-240+25, 0);
 	balls_add(240-75, 0);
+
+	balls_add(-240+45, 40);
 }
+
+#define DAMPING_FACTOR 0.9F /* Reduction of velocity on collision */
+#define TRANSLATION_EPSILON 0.01F
+#define TRANSLATION_EPSILON_SQARED (TRANSLATION_EPSILON*TRANSLATION_EPSILON)
+#define TRANSLATION_MAX_ITERATIONS 8
 
 void balls_simulation_update(float time_sec, float delta_time_sec) {
 	time_sec *= SIMULATION_TIME_SCALE;
 	delta_time_sec *= SIMULATION_TIME_SCALE;
 	//todo several iterations
+
 	for(int i=0; i<balls_count; ++i) {
 		ball_obj_t* ball1_ref = &balls[i];
 		vec2d_t* bpos = &ball1_ref->pos;
@@ -67,31 +75,108 @@ void balls_simulation_update(float time_sec, float delta_time_sec) {
 		vec2d_t delta_vel = vec_scaled(&gravity_force, delta_time_sec);
 		vec_translate(bvel, &delta_vel);
 
+
+		/*
+		 * Total position translation in this step. Not applying transltion yet */
 		vec2d_t delta_pos = vec_scaled(bvel, delta_time_sec);
-		vec_translate(bpos, &delta_pos);
 
+		/*
+		 * Recursively apply collision and constrains check
+		 * Add to ball position and modify velocity
+		 * with reflections and damping.
+		 */
 
-		/* Constraints */
-		float dist_from_center = sqrtf(vec_len_sq(bpos));
+		while(vec_len_sq(&delta_pos) > TRANSLATION_EPSILON_SQARED) {
+			/* Suspected position in this step */
+			vec2d_t th_pos = vec_add(bpos, &delta_pos);
 
-		if((dist_from_center + ball1_ref->radius) > CONSTR_RADIUS) {
-			/* Ball out of constrain */
+			/*
+			 * Check if it is valid location.
+			 * If not find valid spot, modify rest of path
+			 * and reflect velocity.
+			 */
 
-			/* Clip position */
-			vec2d_t norm_toward_center = vec_get_normalized(bpos);
-			vec_negate(&norm_toward_center);
+			/* Constraints for th_pos */
+			float dist_from_center = sqrtf(vec_len_sq(&th_pos));
+			float constr_radius_trimmed = CONSTR_RADIUS - ball1_ref->radius;
 
-			float dist_otside = dist_from_center + ball1_ref->radius - CONSTR_RADIUS;
-			vec2d_t translation = {
-					.x = norm_toward_center.x * dist_otside,
-					.y = norm_toward_center.y * dist_otside,
-			};
-			vec_translate(bpos, &translation);
+			if(dist_from_center > constr_radius_trimmed) {
+				/*
+				 * Ball's center outside constrain circle.
+				 * Find common point of const_trimmed_circle and
+				 * strait of balls movement.
+				 * Use circle equation: x^2 + y^2 = R^2
+				 * and parametrized line equation p = p0 + t*v
+				 * Solve t and choose t > 0
+				 */
 
-			/* Reflect velocity */
-			vec2d_t reflected_vel = vec_get_reflected(bvel, &norm_toward_center);
-			bvel->x = reflected_vel.x;
-			bvel->y = reflected_vel.y;
+				/* Start from bpos as 'p', with delta_pos as 'v'
+				 *				float a = (vx^2 + vy^2)
+				 *				float b = 2 * (px * vx + py * vy)
+				 *				float c = (px^2 + py^2 - R^2)
+				 *				float t = (-b ± √(b^2 - 4ac)) / 2a
+				 * Solution when
+				 */
+
+				float coof_a = delta_pos.x * delta_pos.x + delta_pos.y * delta_pos.y;
+				float coof_b = 2.0F * vec_get_dot_product(bpos, &delta_pos);
+				float coof_c = vec_len_sq(bpos) - constr_radius_trimmed*constr_radius_trimmed;
+				float delta = coof_b * coof_b - 4.0F * coof_a * coof_c;
+
+				if(delta >= 0.0F) {
+					/* Solution exists */
+					float t = 0.0F;
+					if(delta > 0.0F) {
+						float sqrt_delta = sqrtf(delta);
+						float t1 = (-coof_b - sqrt_delta) / (2.0F * coof_a);
+						float t2 = (-coof_b + sqrt_delta) / (2.0F * coof_a);
+						t = (t1 > t2) ? t1 : t2; //find positive, well... in this way
+					}
+					else {
+						/* delta = 0.0F */
+						t = (-coof_b - 0) / (2.0F * coof_a);
+					}
+
+					/* t is parameter of ball hitting edge */
+					vec2d_t transl_to_cross_circle = {
+							.x = t * delta_pos.x,
+							.y = t * delta_pos.y,
+					};
+
+					/*
+					 * Move ball, shorted rest of remaining path,
+					 * reflect velocity
+					 */
+
+					vec_translate(bpos, &transl_to_cross_circle);
+					delta_pos.x -= transl_to_cross_circle.x;
+					delta_pos.y -= transl_to_cross_circle.y;
+
+					/* Reflect velocity */
+					vec2d_t dir_to_ball = vec_get_normalized(bpos);
+					vec2d_t reflection_normal = {
+							-dir_to_ball.x,
+							-dir_to_ball.y
+					};
+					vec2d_t reflected_velocity = vec_get_reflected(bvel, &reflection_normal);
+					*bvel = vec_scaled(&reflected_velocity, DAMPING_FACTOR);
+
+					/* Change delta position according to new velocity */
+					//todo use time to solve steps
+					float delta_pos_len = sqrtf(vec_len_sq(&delta_pos));
+					float velocity_len = sqrtf(vec_len_sq(bvel));
+					delta_pos.x = delta_pos_len * bvel->x / velocity_len;
+					delta_pos.y = delta_pos_len * bvel->y / velocity_len;
+
+				}
+			}
+
+			else {
+				/* No collicion with border */
+				vec_translate(bpos, &delta_pos);
+				delta_pos.x = 0.0F;
+				delta_pos.y = 0.0F;
+			}
 		}
 	}
 }

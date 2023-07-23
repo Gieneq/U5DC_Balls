@@ -63,3 +63,23 @@ void vec_negate(vec2d_t* vec) {
 	vec->x = -vec->x;
 	vec->y = -vec->y;
 }
+
+float vec_get_dot_product(const vec2d_t* vec1, const vec2d_t* vec2) {
+    float dot = (vec1->x * vec2->x) + (vec1->y * vec2->y);
+    return dot;
+}
+
+vec2d_t vec_add(const vec2d_t* v1, const vec2d_t* v2) {
+	vec2d_t tmp = {
+			.x = v1->x + v2->x,
+			.y = v1->y + v2->y,
+	};
+	return tmp;
+}
+
+
+
+
+
+
+
