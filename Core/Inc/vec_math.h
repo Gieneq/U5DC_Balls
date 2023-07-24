@@ -23,3 +23,4 @@ vec2d_t vec_get_added(const vec2d_t* v1, const vec2d_t* v2);
 float vec_get_distance(const vec2d_t* bpos, const vec2d_t* b2pos);
 
 vec2d_t get_rotated_clockwise_90n(const vec2d_t* vec, const int n);
+vec2d_t vec_get_subtracted(const vec2d_t* v1, const vec2d_t* v2);

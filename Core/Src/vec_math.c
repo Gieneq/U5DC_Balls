@@ -84,6 +84,14 @@ vec2d_t vec_get_added(const vec2d_t* v1, const vec2d_t* v2) {
 	return tmp;
 }
 
+vec2d_t vec_get_subtracted(const vec2d_t* v1, const vec2d_t* v2) {
+	vec2d_t tmp = {
+			.x = v1->x - v2->x,
+			.y = v1->y - v2->y,
+	};
+	return tmp;
+}
+
 float vec_get_distance(const vec2d_t* bpos, const vec2d_t* b2pos) {
 	vec2d_t tmp = {
 			.x = bpos->x - b2pos->x,

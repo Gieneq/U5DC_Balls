@@ -24,6 +24,7 @@
 #include "gpu2d.h"
 #include "icache.h"
 #include "ltdc.h"
+#include "rng.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -36,6 +37,7 @@
 #include "my_stts22h.h"
 #include "balls_simulation.h"
 #include "graphics_res.h"
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,7 +57,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+static bool should_gen_new_ball = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -112,6 +114,7 @@ int main(void)
   MX_GFXMMU_Init();
   MX_LTDC_Init();
   MX_GPU2D_Init();
+  MX_RNG_Init();
   /* USER CODE BEGIN 2 */
   if (bsp_init() != BSP_OK) {
 	  Error_Handler();
@@ -150,6 +153,10 @@ int main(void)
 		  bsp_update();
 
 		  if(start_sim_warmup > START_SIM_WARMUP_DELAY) {
+			  if(should_gen_new_ball == true) {
+				  should_gen_new_ball = false;
+				  balls_simulation_generate_ball();
+			  }
 			  balls_simulation_update(time_sec, delta_time_sec);
 		  } else {
 			  start_sim_warmup += delta_time_sec;
@@ -194,10 +201,12 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSE
-                              |RCC_OSCILLATORTYPE_MSI|RCC_OSCILLATORTYPE_MSIK;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSI
+                              |RCC_OSCILLATORTYPE_HSE|RCC_OSCILLATORTYPE_MSI
+                              |RCC_OSCILLATORTYPE_MSIK;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
@@ -346,7 +355,11 @@ static void draw_test() {
 
 
 
-
+void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin) {
+	if(GPIO_Pin == BLUE_BUTTON_Pin) {
+		should_gen_new_ball = true;
+	}
+}
 
 
 /* USER CODE END 4 */
