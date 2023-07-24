@@ -167,10 +167,14 @@ void balls_simulation_update(float time_sec, float delta_time_sec) {
 			const vec2d_t b1_d_pos = vec_get_scaled(b1_vel, delta_time_sec);
 			vec_add(b1_pos, &b1_d_pos);
 		}
+	}
 
-
-		/* Check collisions with other balls */
-		solve_ball_to_balls_collision(i);
+	static const int iterations = 5;
+	for(int n=0; n<iterations; ++n) {
+		for(int i=0; i<balls_count; ++i) {
+			/* Check collisions with other balls */
+			solve_ball_to_balls_collision(i);
+		}
 	}
 }
 
@@ -218,8 +222,6 @@ static void solve_ball_to_balls_collision(const int ball_idx) {
 			*b2_vel = vec_get_scaled(&b1_to_b2_norm, half_vel_value);
 		}
 	}
-
-
 }
 
 
