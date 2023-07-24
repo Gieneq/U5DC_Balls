@@ -322,3 +322,23 @@ void gfx_draw_bitmap_blocking(uint32_t *pSrc, uint16_t x, uint16_t y, uint16_t w
 
 }
 
+void gfx_draw_hline(uint32_t x1, uint32_t x2, uint32_t y, uint32_t color) {
+	if(x1 > x2) {
+		return;
+	}
+	for(int ix=x1; ix<x2; ++ix) {
+		uint32_t destination = back_buffer_address + (y * PIXEL_PERLINE + ix) * 4;
+		*(__IO uint32_t *)(destination) = color;
+	}
+}
+
+void gfx_draw_vline(uint32_t y1, uint32_t y2, uint32_t x, uint32_t color) {
+	if(y1 > y2) {
+		return;
+	}
+	for(int iy=y1; iy<y2; ++iy) {
+		uint32_t destination = back_buffer_address + (iy * PIXEL_PERLINE + x) * 4;
+		*(__IO uint32_t *)(destination) = color;
+	}
+}
+
