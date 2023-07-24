@@ -53,14 +53,14 @@ void balls_simulation_init() {
 //	balls_add(-240+45, 40);
 
 
-//	balls_add(0, 100);
-//	balls_add(0, -200);
+	balls_add(1, 120);
+	balls_add(0, -220);
 
-	balls_simulation_generate_ball();
+//	balls_simulation_generate_ball();
 //	balls_add(180, 122-10);
 }
 
-#define DAMPING_FACTOR 0.82F /* Reduction of velocity on collision */
+#define DAMPING_FACTOR 0.99F /* Reduction of velocity on collision */
 #define TRANSLATION_EPSILON 0.01F
 #define TRANSLATION_EPSILON_SQARED (TRANSLATION_EPSILON*TRANSLATION_EPSILON)
 #define TRANSLATION_MAX_ITERATIONS 8
@@ -156,7 +156,7 @@ void balls_simulation_update(float time_sec, float delta_time_sec) {
 			*b1_vel = b1_reflected_vel;
 		}
 		else {
-			/* Not touching at all */
+			/* Not touching constrains at all */
 
 			/* Calculate velocity */
 			const vec2d_t acceleration = gravity_force;
@@ -169,7 +169,7 @@ void balls_simulation_update(float time_sec, float delta_time_sec) {
 		}
 	}
 
-	static const int iterations = 5;
+	static const int iterations = 1;
 	for(int n=0; n<iterations; ++n) {
 		for(int i=0; i<balls_count; ++i) {
 			/* Check collisions with other balls */
