@@ -13,4 +13,6 @@ Here you can find:
 
 At 30 FPS 10% CPU time - not bad.
 
-[Working example](img/round.png)
+<p align="center">
+    <img src="img/round.png" width="500" alt="Working example">
+</p>
